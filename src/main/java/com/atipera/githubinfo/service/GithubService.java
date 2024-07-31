@@ -3,6 +3,7 @@ package com.atipera.githubinfo.service;
 import com.atipera.githubinfo.errorHandler.UserNotFoundException;
 import com.atipera.githubinfo.model.Repo;
 import com.atipera.githubinfo.webclient.info.dto.BranchDto;
+import com.atipera.githubinfo.webclient.info.dto.webclient.info.GithubClient;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -24,49 +25,26 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class GithubService {
 
-  private final RestTemplate restTemplate;
+  private final GithubClient githubClient;
 
   public ResponseEntity<Object> getUserRepositories(String username) {
-    String reposUrl = "https://api.github.com/users/" + username + "/repos";
-
     try {
-      HttpHeaders headers = new HttpHeaders();
-      headers.set("Accept", "application/json");
-      ResponseEntity<Repo[]> response = restTemplate.getForEntity(reposUrl, Repo[].class, headers);
+      List<Repo> nonForkRepos = githubClient.getUserRepositories(username)
+          .stream()
+          .filter(repo -> !repo.isFork())
+          .collect(Collectors.toList());
 
-      if (response.getStatusCode() == HttpStatus.OK) {
-        List<Repo> nonForkRepos = filterNonForks(response.getBody());
-
-        for (Repo repo : nonForkRepos) {
-          List<BranchDto> branches = getBranchesForRepo(username, repo.getName());
-          repo.setBranches(branches);
-        }
-
-        return ResponseEntity.ok(nonForkRepos);
+      for (Repo repo : nonForkRepos) {
+        List<BranchDto> branches = githubClient.getBranchesForRepo(username, repo.getName());
+        repo.setBranches(branches);
       }
-    } catch (HttpClientErrorException e) {
-      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-        throw new UserNotFoundException("User " + username + " not found");
-      }
+
+      return ResponseEntity.ok(nonForkRepos);
+    } catch (UserNotFoundException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    } catch (Exception e) {
       log.error("Error occurred while fetching user repositories", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error");
     }
-    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error");
-  }
-
-  private List<BranchDto> getBranchesForRepo(String username, String repoName) {
-    String branchesUrl = "https://api.github.com/repos/" + username + "/" + repoName + "/branches";
-    try {
-      ResponseEntity<BranchDto[]> response = restTemplate.getForEntity(branchesUrl, BranchDto[].class);
-      return Arrays.asList(response.getBody());
-    } catch (HttpClientErrorException e) {
-      log.error("Error fetching branches for repo: " + repoName, e);
-      return Collections.emptyList();
-    }
-  }
-
-  private List<Repo> filterNonForks(Repo[] repositories) {
-    return Arrays.stream(repositories)
-        .filter(repo -> !repo.isFork())
-        .collect(Collectors.toList());
   }
 }
