@@ -1,4 +1,4 @@
-package com.atipera.githubinfo.model;
+package com.atipera.githubinfo.webclient.info.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -8,9 +8,9 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
-public class Branch {
+public class BranchDto {
 
   private String name;
 
-  private Commit commit;
+  private CommitDto commit;
 }

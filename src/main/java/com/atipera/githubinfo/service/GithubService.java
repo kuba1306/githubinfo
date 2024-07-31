@@ -1,8 +1,8 @@
 package com.atipera.githubinfo.service;
 
-import com.atipera.githubinfo.errorHandler.ErrorResponse;
-import com.atipera.githubinfo.model.Branch;
+import com.atipera.githubinfo.errorHandler.UserNotFoundException;
 import com.atipera.githubinfo.model.Repo;
+import com.atipera.githubinfo.webclient.info.dto.BranchDto;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,7 +38,7 @@ public class GithubService {
         List<Repo> nonForkRepos = filterNonForks(response.getBody());
 
         for (Repo repo : nonForkRepos) {
-          List<Branch> branches = getBranchesForRepo(username, repo.getName());
+          List<BranchDto> branches = getBranchesForRepo(username, repo.getName());
           repo.setBranches(branches);
         }
 
@@ -46,17 +46,17 @@ public class GithubService {
       }
     } catch (HttpClientErrorException e) {
       if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "User not found"));
+        throw new UserNotFoundException("User " + username + " not found");
       }
+      log.error("Error occurred while fetching user repositories", e);
     }
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error");
   }
 
-  private List<Branch> getBranchesForRepo(String username, String repoName) {
+  private List<BranchDto> getBranchesForRepo(String username, String repoName) {
     String branchesUrl = "https://api.github.com/repos/" + username + "/" + repoName + "/branches";
     try {
-      ResponseEntity<Branch[]> response = restTemplate.getForEntity(branchesUrl, Branch[].class);
+      ResponseEntity<BranchDto[]> response = restTemplate.getForEntity(branchesUrl, BranchDto[].class);
       return Arrays.asList(response.getBody());
     } catch (HttpClientErrorException e) {
       log.error("Error fetching branches for repo: " + repoName, e);
