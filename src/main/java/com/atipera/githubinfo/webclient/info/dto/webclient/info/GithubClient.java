@@ -1,56 +1,66 @@
 package com.atipera.githubinfo.webclient.info.dto.webclient.info;
 
-import com.atipera.githubinfo.errorHandler.UserNotFoundException;
+import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
 import com.atipera.githubinfo.model.Repo;
 import com.atipera.githubinfo.webclient.info.dto.BranchDto;
 
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import lombok.RequiredArgsConstructor;
-
 @Component
-@RequiredArgsConstructor
 public class GithubClient {
 
   private final RestTemplate restTemplate;
 
-  private static final String BASE_URL = "https://api.github.com";
+  @Autowired
+  public GithubClient(RestTemplate restTemplate) {
+    this.restTemplate = restTemplate;
+  }
 
-  public List<Repo> getUserRepositories(String username) {
-    String reposUrl = String.format("%s/users/%s/repos", BASE_URL, username);
+  public ResponseEntity<Object> getUserRepositories(String username) {
+    String reposUrl = "https://api.github.com/users/" + username + "/repos";
     try {
-      ResponseEntity<Repo[]> response = restTemplate.getForEntity(reposUrl, Repo[].class, createJsonHeaders());
-      return Arrays.asList(response.getBody());
+      HttpHeaders headers = new HttpHeaders();
+      headers.set("Accept", "application/json");
+      HttpEntity<String> entity = new HttpEntity<>(headers);
+      ResponseEntity<Repo[]> response = restTemplate.exchange(reposUrl, HttpMethod.GET, entity, Repo[].class);
+
+      List<Repo> repoList = Arrays.asList(response.getBody());
+      return ResponseEntity.ok(repoList);
     } catch (HttpClientErrorException e) {
       if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-        throw new UserNotFoundException("User " + username + " not found");
+        CustomErrorResponse errorResponse = new CustomErrorResponse(HttpStatus.NOT_FOUND.value(), "User not found");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+      } else {
+        CustomErrorResponse errorResponse = new CustomErrorResponse(e.getStatusCode().value(), "An error occurred");
+        return ResponseEntity.status(e.getStatusCode()).body(errorResponse);
       }
-      throw e;
     }
   }
 
-  public List<BranchDto> getBranchesForRepo(String username, String repoName) {
-    String branchesUrl = String.format("%s/repos/%s/%s/branches", BASE_URL, username, repoName);
+  public ResponseEntity<Object> getBranchesForRepo(String username, String repoName) {
+    String branchesUrl = "https://api.github.com/repos/" + username + "/" + repoName + "/branches";
     try {
-      ResponseEntity<BranchDto[]> response = restTemplate.getForEntity(branchesUrl, BranchDto[].class, createJsonHeaders());
-      return Arrays.asList(response.getBody());
-    } catch (HttpClientErrorException e) {
-      // Optional: Handle specific cases for branch fetching errors
-      throw e;
-    }
-  }
+      HttpHeaders headers = new HttpHeaders();
+      headers.set("Accept", "application/json");
+      HttpEntity<String> entity = new HttpEntity<>(headers);
+      ResponseEntity<BranchDto[]> response = restTemplate.exchange(branchesUrl, HttpMethod.GET, entity, BranchDto[].class);
 
-  private HttpHeaders createJsonHeaders() {
-    HttpHeaders headers = new HttpHeaders();
-    headers.set("Accept", "application/json");
-    return headers;
+      List<BranchDto> branchList = Arrays.asList(response.getBody());
+      return ResponseEntity.ok(branchList);
+    } catch (HttpClientErrorException e) {
+      CustomErrorResponse errorResponse = new CustomErrorResponse(e.getStatusCode().value(), "Error fetching branches");
+      return ResponseEntity.status(e.getStatusCode()).body(errorResponse);
+    }
   }
 }

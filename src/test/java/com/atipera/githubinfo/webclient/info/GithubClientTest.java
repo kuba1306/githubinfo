@@ -1,102 +1,132 @@
 package com.atipera.githubinfo.webclient.info;
 
-import com.atipera.githubinfo.errorHandler.UserNotFoundException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
+
+import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
 import com.atipera.githubinfo.model.Repo;
 import com.atipera.githubinfo.webclient.info.dto.BranchDto;
+import com.atipera.githubinfo.webclient.info.dto.CommitDto;
 import com.atipera.githubinfo.webclient.info.dto.webclient.info.GithubClient;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+public class GithubClientTest {
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-class GithubClientTest {
-
+  @Mock
   private RestTemplate restTemplate;
+
+  @InjectMocks
   private GithubClient githubClient;
 
   @BeforeEach
-  void setUp() {
-    restTemplate = mock(RestTemplate.class);
-    githubClient = new GithubClient(restTemplate);
+  public void setUp() {
+    MockitoAnnotations.openMocks(this);
   }
 
   @Test
-  void testGetUserRepositories_Success() {
-    String username = "testUser";
-    Repo[] repos = {new Repo(), new Repo()};
-    ResponseEntity<Repo[]> response = new ResponseEntity<>(repos, HttpStatus.OK);
-    when(restTemplate.getForEntity(anyString(), eq(Repo[].class), any(HttpHeaders.class)))
-        .thenReturn(response);
+  public void testGetUserRepositories_Success() {
+    // Given
+    Repo repo1 = new Repo();
+    repo1.setName("repo1");
+    repo1.setFork(false);
 
-    List<Repo> result = githubClient.getUserRepositories(username);
+    Repo repo2 = new Repo();
+    repo2.setName("repo2");
+    repo2.setFork(true);
 
-    assertNotNull(result);
-    assertEquals(2, result.size());
-    verify(restTemplate, times(1)).getForEntity(anyString(), eq(Repo[].class), any(HttpHeaders.class));
+    Repo[] repos = {repo1, repo2};
+    ResponseEntity<Repo[]> responseEntity = new ResponseEntity<>(repos, HttpStatus.OK);
+    when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+        .thenReturn(responseEntity);
+
+    // When
+    ResponseEntity<Object> response = githubClient.getUserRepositories("testUser");
+
+    // Then
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    List<Repo> repoList = (List<Repo>) response.getBody();
+    assertEquals(2, repoList.size());
+    assertEquals("repo1", repoList.get(0).getName());
   }
 
   @Test
-  void testGetUserRepositories_UserNotFound() {
-    String username = "unknownUser";
-    when(restTemplate.getForEntity(anyString(), eq(Repo[].class), any(HttpHeaders.class)))
+  public void testGetUserRepositories_UserNotFound() {
+    // Given
+    when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
         .thenThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND));
 
-    UserNotFoundException thrown = assertThrows(UserNotFoundException.class, () -> {
-      githubClient.getUserRepositories(username);
-    });
+    // When
+    ResponseEntity<Object> response = githubClient.getUserRepositories("unknownUser");
 
-    assertEquals("User unknownUser not found", thrown.getMessage());
+    // Then
+    assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    CustomErrorResponse errorResponse = (CustomErrorResponse) response.getBody();
+    assertEquals(HttpStatus.NOT_FOUND.value(), errorResponse.getStatus());
+    assertEquals("User not found", errorResponse.getMessage());
   }
 
   @Test
-  void testGetBranchesForRepo_Success() {
-    String username = "testUser";
-    String repoName = "testRepo";
-    BranchDto[] branches = {new BranchDto(), new BranchDto()}; // Assuming BranchDto has a default constructor
-    ResponseEntity<BranchDto[]> response = new ResponseEntity<>(branches, HttpStatus.OK);
-    when(restTemplate.getForEntity(anyString(), eq(BranchDto[].class), any(HttpHeaders.class)))
-        .thenReturn(response);
+  public void testGetUserRepositories_Error() {
+    // Given
+    when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+        .thenThrow(new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR));
 
-    List<BranchDto> result = githubClient.getBranchesForRepo(username, repoName);
+    // When
+    ResponseEntity<Object> response = githubClient.getUserRepositories("testUser");
 
-    assertNotNull(result);
-    assertEquals(2, result.size());
-    verify(restTemplate, times(1)).getForEntity(anyString(), eq(BranchDto[].class), any(HttpHeaders.class));
+    // Then
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    CustomErrorResponse errorResponse = (CustomErrorResponse) response.getBody();
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorResponse.getStatus());
+    assertEquals("An error occurred", errorResponse.getMessage());
   }
 
   @Test
-  void testGetBranchesForRepo_Error() {
-    String username = "testUser";
-    String repoName = "testRepo";
-    when(restTemplate.getForEntity(anyString(), eq(BranchDto[].class), any(HttpHeaders.class)))
-        .thenThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST));
+  public void testGetBranchesForRepo_Success() {
+    // Given
+    BranchDto[] branches = {new BranchDto("main",new CommitDto())};
+    ResponseEntity<BranchDto[]> responseEntity = new ResponseEntity<>(branches, HttpStatus.OK);
+    when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+        .thenReturn(responseEntity);
 
-    HttpClientErrorException thrown = assertThrows(HttpClientErrorException.class, () -> {
-      githubClient.getBranchesForRepo(username, repoName);
-    });
+    // When
+    ResponseEntity<Object> response = githubClient.getBranchesForRepo("testUser", "testRepo");
 
-    assertEquals(HttpStatus.BAD_REQUEST, thrown.getStatusCode());
+    // Then
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    List<BranchDto> branchList = (List<BranchDto>) response.getBody();
+    assertEquals(1, branchList.size());
+    assertEquals("main", branchList.get(0).getName());
+  }
+
+  @Test
+  public void testGetBranchesForRepo_Error() {
+    // Given
+    when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+        .thenThrow(new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR));
+
+    // When
+    ResponseEntity<Object> response = githubClient.getBranchesForRepo("testUser", "testRepo");
+
+    // Then
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    CustomErrorResponse errorResponse = (CustomErrorResponse) response.getBody();
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorResponse.getStatus());
+    assertEquals("Error fetching branches", errorResponse.getMessage());
   }
 }

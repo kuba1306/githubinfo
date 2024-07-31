@@ -2,9 +2,10 @@ package com.atipera.githubinfo.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-import com.atipera.githubinfo.errorHandler.UserNotFoundException;
+import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
 import com.atipera.githubinfo.model.Repo;
 import com.atipera.githubinfo.webclient.info.dto.BranchDto;
 import com.atipera.githubinfo.webclient.info.dto.webclient.info.GithubClient;
@@ -20,7 +21,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-class GithubServiceTest {
+public class GithubServiceTest {
 
   @Mock
   private GithubClient githubClient;
@@ -29,14 +30,13 @@ class GithubServiceTest {
   private GithubService githubService;
 
   @BeforeEach
-  void setUp() {
+  public void setUp() {
     MockitoAnnotations.openMocks(this);
   }
 
   @Test
-  void testGetUserRepositories_Success() {
-    String username = "testUser";
-
+  public void testGetUserRepositories_Success() {
+    // Given
     Repo repo1 = new Repo();
     repo1.setName("repo1");
     repo1.setFork(false);
@@ -45,43 +45,72 @@ class GithubServiceTest {
     repo2.setName("repo2");
     repo2.setFork(true);
 
-    BranchDto branchDto1 = new BranchDto();
-    BranchDto branchDto2 = new BranchDto();
+    List<Repo> repoList = List.of(repo1, repo2);
+    when(githubClient.getUserRepositories(anyString())).thenReturn(ResponseEntity.ok(repoList));
 
-    when(githubClient.getUserRepositories(username)).thenReturn(Arrays.asList(repo1, repo2));
-    when(githubClient.getBranchesForRepo(username, "repo1")).thenReturn(Arrays.asList(branchDto1, branchDto2));
+    BranchDto branch1 = new BranchDto();
+    branch1.setName("main");
 
-    ResponseEntity<Object> response = githubService.getUserRepositories(username);
+    List<BranchDto> branches = List.of(branch1);
+    when(githubClient.getBranchesForRepo(anyString(), anyString())).thenReturn(ResponseEntity.ok(branches));
 
+    // When
+    ResponseEntity<Object> response = githubService.getUserRepositories("testUser");
+
+    // Then
     assertEquals(HttpStatus.OK, response.getStatusCode());
-    List<Repo> repos = (List<Repo>) response.getBody();
-    assertNotNull(repos);
-    assertEquals(1, repos.size());
-    assertEquals("repo1", repos.get(0).getName());
-    assertEquals(2, repos.get(0).getBranches().size());
+    List<Repo> nonForkRepos = (List<Repo>) response.getBody();
+    assertEquals(1, nonForkRepos.size());
+    assertEquals("repo1", nonForkRepos.get(0).getName());
+    assertEquals(branches, nonForkRepos.get(0).getBranches());
   }
 
   @Test
-  void testGetUserRepositories_UserNotFound() {
-    String username = "unknownUser";
+  public void testGetUserRepositories_UserNotFound() {
+    // Given
+    CustomErrorResponse errorResponse = new CustomErrorResponse(HttpStatus.NOT_FOUND.value(), "User not found");
+    when(githubClient.getUserRepositories(anyString())).thenReturn(ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse));
 
-    when(githubClient.getUserRepositories(username)).thenThrow(new UserNotFoundException("User not found"));
+    // When
+    ResponseEntity<Object> response = githubService.getUserRepositories("unknownUser");
 
-    ResponseEntity<Object> response = githubService.getUserRepositories(username);
-
+    // Then
     assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-    assertEquals("User not found", response.getBody());
+    assertEquals(errorResponse, response.getBody());
   }
 
   @Test
-  void testGetUserRepositories_InternalServerError() {
-    String username = "testUser";
+  public void testGetUserRepositories_BranchesNotFound() {
+    // Given
+    Repo repo = new Repo();
+    repo.setName("repo1");
+    repo.setFork(false);
 
-    when(githubClient.getUserRepositories(username)).thenThrow(new RuntimeException("Internal error"));
+    List<Repo> repoList = List.of(repo);
+    when(githubClient.getUserRepositories(anyString())).thenReturn(ResponseEntity.ok(repoList));
 
-    ResponseEntity<Object> response = githubService.getUserRepositories(username);
+    CustomErrorResponse errorResponse = new CustomErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Branches not found");
+    when(githubClient.getBranchesForRepo(anyString(), anyString())).thenReturn(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse));
 
+    // When
+    ResponseEntity<Object> response = githubService.getUserRepositories("testUser");
+
+    // Then
     assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-    assertEquals("Internal server error", response.getBody());
+    assertEquals(errorResponse, response.getBody());
+  }
+
+  @Test
+  public void testGetUserRepositories_InternalServerError() {
+    // Given
+    CustomErrorResponse errorResponse = new CustomErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error");
+    when(githubClient.getUserRepositories(anyString())).thenReturn(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse));
+
+    // When
+    ResponseEntity<Object> response = githubService.getUserRepositories("testUser");
+
+    // Then
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    assertEquals(errorResponse, response.getBody());
   }
 }

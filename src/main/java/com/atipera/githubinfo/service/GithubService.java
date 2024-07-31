@@ -1,21 +1,15 @@
 package com.atipera.githubinfo.service;
 
-import com.atipera.githubinfo.errorHandler.UserNotFoundException;
 import com.atipera.githubinfo.model.Repo;
 import com.atipera.githubinfo.webclient.info.dto.BranchDto;
 import com.atipera.githubinfo.webclient.info.dto.webclient.info.GithubClient;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,23 +22,25 @@ public class GithubService {
   private final GithubClient githubClient;
 
   public ResponseEntity<Object> getUserRepositories(String username) {
-    try {
-      List<Repo> nonForkRepos = githubClient.getUserRepositories(username)
+    ResponseEntity<Object> responseEntity = githubClient.getUserRepositories(username);
+    if (responseEntity.getStatusCode() == HttpStatus.OK) {
+      List<Repo> nonForkRepos = ((List<Repo>) responseEntity.getBody())
           .stream()
           .filter(repo -> !repo.isFork())
           .collect(Collectors.toList());
 
       for (Repo repo : nonForkRepos) {
-        List<BranchDto> branches = githubClient.getBranchesForRepo(username, repo.getName());
-        repo.setBranches(branches);
+        ResponseEntity<Object> branchesResponse = githubClient.getBranchesForRepo(username, repo.getName());
+        if (branchesResponse.getStatusCode() == HttpStatus.OK) {
+          List<BranchDto> branches = (List<BranchDto>) branchesResponse.getBody();
+          repo.setBranches(branches);
+        } else {
+          return branchesResponse;
+        }
       }
-
       return ResponseEntity.ok(nonForkRepos);
-    } catch (UserNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-    } catch (Exception e) {
-      log.error("Error occurred while fetching user repositories", e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error");
+    } else {
+      return responseEntity;
     }
   }
 }
