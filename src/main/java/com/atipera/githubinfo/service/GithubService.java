@@ -25,12 +25,10 @@ public class GithubService {
     try {
       List<Repo> repos = githubClient.getUserRepositories(username);
 
-      // Filter non-fork repositories
       List<Repo> nonForkRepos = repos.stream()
           .filter(repo -> !repo.isFork())
           .collect(Collectors.toList());
 
-      // Use CompletableFuture to fetch branches in parallel
       List<CompletableFuture<Void>> futures = nonForkRepos.stream().map(repo ->
           CompletableFuture.runAsync(() -> {
             List<BranchDto> branches = githubClient.getBranchesForRepo(username, repo.getName());
@@ -41,7 +39,6 @@ public class GithubService {
       CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
       return nonForkRepos;
     } catch (GithubClientException e) {
-      // Log and rethrow exception to be handled by the controller
       log.error("Error fetching repositories: {}", e.getMessage());
       throw e;
     }
