@@ -1,15 +1,12 @@
 package com.atipera.githubinfo.webclient;
 
-import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
+import com.atipera.githubinfo.errorHandler.GithubClientException;
 import com.atipera.githubinfo.model.Repo;
 import com.atipera.githubinfo.webclient.dto.BranchDto;
 
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -19,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 @Component
 public class GithubClient {
 
+  private static final String BASE_URL = "https://api.github.com/";
   private final RestTemplate restTemplate;
 
   @Autowired
@@ -26,40 +24,28 @@ public class GithubClient {
     this.restTemplate = restTemplate;
   }
 
-  public ResponseEntity<Object> getUserRepositories(String username) {
-    String reposUrl = "https://api.github.com/users/" + username + "/repos";
-    try {
-      HttpHeaders headers = new HttpHeaders();
-      headers.set("Accept", "application/json");
-      HttpEntity<String> entity = new HttpEntity<>(headers);
-      ResponseEntity<Repo[]> response = restTemplate.exchange(reposUrl, HttpMethod.GET, entity, Repo[].class);
+  public List<Repo> getUserRepositories(String username) {
+    return callGetMethod("users/{username}/repos", Repo[].class, username);
+  }
 
-      List<Repo> repoList = List.of(response.getBody());
-      return ResponseEntity.ok(repoList);
+  public List<BranchDto> getBranchesForRepo(String username, String repoName) {
+    return callGetMethod("repos/{username}/{repoName}/branches", BranchDto[].class, username, repoName);
+  }
+
+  private <T> List<T> callGetMethod(String url, Class<T[]> responseType, Object... uriVariables) {
+    try {
+      ResponseEntity<T[]> response = restTemplate.getForEntity(BASE_URL + url, responseType, uriVariables);
+      return List.of(response.getBody());
     } catch (HttpClientErrorException e) {
-      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-        CustomErrorResponse errorResponse = new CustomErrorResponse(HttpStatus.NOT_FOUND.value(), "User not found");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-      } else {
-        CustomErrorResponse errorResponse = new CustomErrorResponse(e.getStatusCode().value(), "An error occurred");
-        return ResponseEntity.status(e.getStatusCode()).body(errorResponse);
-      }
+      throw new GithubClientException(e.getStatusCode().value(), extractErrorMessage(e));
     }
   }
 
-  public ResponseEntity<Object> getBranchesForRepo(String username, String repoName) {
-    String branchesUrl = "https://api.github.com/repos/" + username + "/" + repoName + "/branches";
-    try {
-      HttpHeaders headers = new HttpHeaders();
-      headers.set("Accept", "application/json");
-      HttpEntity<String> entity = new HttpEntity<>(headers);
-      ResponseEntity<BranchDto[]> response = restTemplate.exchange(branchesUrl, HttpMethod.GET, entity, BranchDto[].class);
-
-      List<BranchDto> branchList = List.of(response.getBody());
-      return ResponseEntity.ok(branchList);
-    } catch (HttpClientErrorException e) {
-      CustomErrorResponse errorResponse = new CustomErrorResponse(e.getStatusCode().value(), "Error fetching branches");
-      return ResponseEntity.status(e.getStatusCode()).body(errorResponse);
+  private String extractErrorMessage(HttpClientErrorException e) {
+    if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+      return "Not Found";
     }
+
+    return e.getMessage();
   }
 }
