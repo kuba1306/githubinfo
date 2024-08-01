@@ -1,16 +1,14 @@
 package com.atipera.githubinfo.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
 import com.atipera.githubinfo.model.Repo;
-import com.atipera.githubinfo.webclient.info.dto.BranchDto;
-import com.atipera.githubinfo.webclient.info.dto.webclient.info.GithubClient;
+import com.atipera.githubinfo.webclient.GithubClient;
+import com.atipera.githubinfo.webclient.dto.BranchDto;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;

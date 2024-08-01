@@ -1,8 +1,8 @@
 package com.atipera.githubinfo.service;
 
 import com.atipera.githubinfo.model.Repo;
-import com.atipera.githubinfo.webclient.info.dto.BranchDto;
-import com.atipera.githubinfo.webclient.info.dto.webclient.info.GithubClient;
+import com.atipera.githubinfo.webclient.dto.BranchDto;
+import com.atipera.githubinfo.webclient.GithubClient;
 
 import java.util.List;
 import java.util.stream.Collectors;

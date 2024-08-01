@@ -7,7 +7,6 @@ import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
 import com.atipera.githubinfo.model.Repo;
 import com.atipera.githubinfo.service.GithubService;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +47,7 @@ public class GithubControllerTest {
     repo2.setName("repo2");
     repo2.setFork(true);
 
-    List<Repo> repoList = Arrays.asList(repo1, repo2);
+    List<Repo> repoList = List.of(repo1, repo2);
     ResponseEntity<Object> responseEntity = ResponseEntity.ok(repoList);
     when(githubService.getUserRepositories("testUser")).thenReturn(responseEntity);
 

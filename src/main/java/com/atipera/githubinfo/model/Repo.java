@@ -1,7 +1,7 @@
 package com.atipera.githubinfo.model;
 
-import com.atipera.githubinfo.webclient.info.dto.BranchDto;
-import com.atipera.githubinfo.webclient.info.dto.OwnerDto;
+import com.atipera.githubinfo.webclient.dto.BranchDto;
+import com.atipera.githubinfo.webclient.dto.OwnerDto;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

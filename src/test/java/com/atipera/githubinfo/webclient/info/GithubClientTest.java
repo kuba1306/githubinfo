@@ -7,9 +7,9 @@ import static org.mockito.Mockito.when;
 
 import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
 import com.atipera.githubinfo.model.Repo;
-import com.atipera.githubinfo.webclient.info.dto.BranchDto;
-import com.atipera.githubinfo.webclient.info.dto.CommitDto;
-import com.atipera.githubinfo.webclient.info.dto.webclient.info.GithubClient;
+import com.atipera.githubinfo.webclient.dto.BranchDto;
+import com.atipera.githubinfo.webclient.dto.CommitDto;
+import com.atipera.githubinfo.webclient.GithubClient;
 
 import java.util.List;
 

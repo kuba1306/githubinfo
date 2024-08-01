@@ -1,10 +1,9 @@
-package com.atipera.githubinfo.webclient.info.dto.webclient.info;
+package com.atipera.githubinfo.webclient;
 
 import com.atipera.githubinfo.errorHandler.CustomErrorResponse;
 import com.atipera.githubinfo.model.Repo;
-import com.atipera.githubinfo.webclient.info.dto.BranchDto;
+import com.atipera.githubinfo.webclient.dto.BranchDto;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +34,7 @@ public class GithubClient {
       HttpEntity<String> entity = new HttpEntity<>(headers);
       ResponseEntity<Repo[]> response = restTemplate.exchange(reposUrl, HttpMethod.GET, entity, Repo[].class);
 
-      List<Repo> repoList = Arrays.asList(response.getBody());
+      List<Repo> repoList = List.of(response.getBody());
       return ResponseEntity.ok(repoList);
     } catch (HttpClientErrorException e) {
       if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
@@ -56,7 +55,7 @@ public class GithubClient {
       HttpEntity<String> entity = new HttpEntity<>(headers);
       ResponseEntity<BranchDto[]> response = restTemplate.exchange(branchesUrl, HttpMethod.GET, entity, BranchDto[].class);
 
-      List<BranchDto> branchList = Arrays.asList(response.getBody());
+      List<BranchDto> branchList = List.of(response.getBody());
       return ResponseEntity.ok(branchList);
     } catch (HttpClientErrorException e) {
       CustomErrorResponse errorResponse = new CustomErrorResponse(e.getStatusCode().value(), "Error fetching branches");

@@ -1,4 +1,4 @@
-package com.atipera.githubinfo.webclient.info.dto;
+package com.atipera.githubinfo.webclient.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
